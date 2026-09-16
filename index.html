@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>BIOBUZZ™ 中文計分器 V1.3</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;color:#111827;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Segoe UI",sans-serif}
+header{background:#111827;color:#fff;text-align:center;padding:18px 14px}
+header h1{margin:0;font-size:23px} header p{margin:5px 0 0;color:#d1d5db;font-size:12px}
+main{max-width:1050px;margin:auto;padding:12px}
+.toolbar{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.action{border:0;border-radius:12px;padding:10px 15px;background:#111827;color:#fff;font-weight:800;font:inherit;touch-action:manipulation}
+.action.danger{background:#b91c1c}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}
+.card{background:#fff;border-radius:18px;padding:15px;box-shadow:0 2px 12px #0001}
+.red{border-top:6px solid #dc2626}.blue{border-top:6px solid #2563eb}
+.score{text-align:center;font-size:46px;font-weight:900;margin:0 0 7px}
+.rpline{text-align:center;background:#f3f4f6;border-radius:10px;padding:8px;font-weight:850}
+h2{margin:0 0 8px;font-size:20px}h3{font-size:15px;margin:16px 0 6px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #e5e7eb}
+.label{font-weight:750}.sub{font-size:11px;color:#6b7280;margin-top:2px}
+.step{display:flex;align-items:center;gap:7px}.step button,.smallbtn{width:43px;height:43px;border:0;border-radius:12px;background:#e5e7eb;font-size:23px;font-weight:900;touch-action:manipulation}
+.num{min-width:25px;text-align:center;font-size:19px;font-weight:900}
+.rpbox{margin-top:12px;background:#eef2ff;border-radius:13px;padding:10px}
+.rprow{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}.yes{color:#15803d;font-weight:900}.no{color:#9ca3af}
+.flowerbox{background:#f9fafb;border-radius:14px;padding:11px;margin:8px 0}
+.flowerhead{display:flex;justify-content:space-between;align-items:center;font-weight:900}
+.badge{font-size:11px;padding:4px 7px;border-radius:99px;background:#e5e7eb}
+.sequence{min-height:34px;margin:8px 0;padding:7px;background:#fff;border-radius:10px;border:1px solid #e5e7eb}
+.ball{display:inline-block;border-radius:50%;width:27px;height:27px;line-height:27px;text-align:center;font-size:13px;font-weight:900;margin:2px;color:#fff}
+.ball.redb{background:#dc2626}.ball.blueb{background:#2563eb}.ball.pollen{background:#eab308;color:#111}
+.ball.remove{background:#6b7280}
+.fbuttons{display:flex;gap:6px;flex-wrap:wrap}.fbuttons button{border:0;border-radius:10px;padding:8px 9px;font:inherit;font-size:12px;font-weight:800;touch-action:manipulation}
+.fr{background:#fee2e2;color:#991b1b}.fb{background:#dbeafe;color:#1e40af}.fp{background:#fef3c7;color:#854d0e}.clear{background:#e5e7eb;color:#374151}
+.result{margin-top:7px;font-size:12px;line-height:1.55}
+.bottom{margin-top:12px;background:#111827;color:#fff;border-radius:18px;padding:15px;text-align:center}.bottom .big{font-size:32px;font-weight:900}.lead{font-weight:850;margin-top:5px}
+.status{text-align:center;margin:8px 0;color:#6b7280;font-size:12px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}.score{font-size:42px}}
+
+.engTitle,.btnEng{display:inline-block;white-space:nowrap}
+.zhTitle{display:inline-block;margin-left:8px}
+.btnZh{display:block;white-space:nowrap}
+</style>
+</head>
+<body>
+<header><h1>🐝 BIOBUZZ™ 中文計分器</h1><p>FTC 2026–2027｜BIOBUZZ presented by RTX｜V1.3</p></header>
+<main>
+<div class="toolbar">
+<button class="action" id="finish">🏁 結束比賽／正式結算</button>
+<button class="action danger" id="reset">↻ 重設本場</button>
+</div>
+<div class="status" id="status">計分中：FLOWER 只在最後 60 秒正式結算。</div>
+<div class="grid"><section class="card red" id="red"></section><section class="card blue" id="blue"></section></div>
+<div class="bottom"><div>目前比分</div><div class="big"><span id="rs">0</span>　：　<span id="bs">0</span></div><div class="lead" id="lead">尚未計分</div><div id="finalrp"></div></div>
+</main>
+<script>
+const labels={
+leave:["LEAVE｜離開起始位置","3 分／台"],
+autoPark:["AUTO PARK｜LOADING ZONE","5 分／台"],
+teleopPark:["TELEOP PARK｜LOADING ZONE","5 分／台"],
+tips:["HIVE TIP","20 分／次"],
+hivePollen:["HIVE 內 POLLEN","2 分／個"],
+hiveNectar:["HIVE 內 NECTAR","2 分／個"],
+gardenPollen:["GARDEN POLLEN","1 分／個"],
+gardenNectar:["GARDEN NECTAR","1 分／個"]
+};
+let finished=false;
+function fresh(){return{leave:0,autoPark:0,teleopPark:0,tips:0,hivePollen:0,hiveNectar:0,gardenPollen:0,gardenNectar:0,
+flowers:[[],[],[],[]]}}
+const state={red:fresh(),blue:fresh(),flowers:[[],[],[],[]]};
+
+function row(c,k){
+ const [a,b]=labels[k];
+ return `<div class="row"><div><div class="label">${a}</div><div class="sub">${b}</div></div>
+ <div class="step"><button data-c="${c}" data-k="${k}" data-d="-1">−</button><span class="num">${state[c][k]}</span><button data-c="${c}" data-k="${k}" data-d="1">＋</button></div></div>`;
+}
+function flowerResult(i){
+ const seq=state.flowers[i];
+ if(!finished)return `<div class="result">結束比賽後依「由下到上」的 NECTAR 位置自動判定。</div>`;
+ const nectar=seq.filter(x=>x==="R"||x==="B");
+ let bottomBonus="無",owner="無",points=0;
+ if(nectar.length){
+   bottomBonus=nectar[0]==="R"?"🔴 紅 +5":"🔵 藍 +5";
+   owner=nectar[nectar.length-1]==="R"?"🔴 紅聯盟擁有":"🔵 藍聯盟擁有";
+   points=seq.length*2;
+ }
+ return `<div class="result"><b>最下面 NECTAR：</b>${bottomBonus}<br><b>FLOWER Owner：</b>${owner}<br><b>Owned FLOWER 得分：</b>${points} 分</div>`;
+}
+function flower(i){
+ const seq=state.flowers[i];
+ const balls=seq.length?seq.map(x=>`<span class="ball ${x==="R"?"redb":x==="B"?"blueb":"pollen"}">${x==="R"?"紅":x==="B"?"藍":"花"}</span>`).join(""):"尚未輸入";
+ return `<div class="flowerbox"><div class="flowerhead"><span>🌸 FLOWER ${i+1}</span><span class="badge">${seq.length} 個</span></div>
+ <div class="sub">由下 → 上輸入球的順序（最後加入的是最上面）</div>
+ <div class="sequence">${balls}</div>
+ <div class="fbuttons">
+ <button class="fr" data-fi="${i}" data-add="R">🔴 紅 NECTAR</button>
+ <button class="fb" data-fi="${i}" data-add="B">🔵 藍 NECTAR</button>
+ <button class="fp" data-fi="${i}" data-add="P">🟡 POLLEN</button>
+ <button class="clear" data-fclear="1" data-fi="${i}">清除</button>
+ </div>${flowerResult(i)}</div>`;
+}
+function flowerSharedScore(i){
+ const seq=state.flowers[i], nectar=seq.filter(x=>x==="R"||x==="B");
+ let red=0,blue=0;
+ if(nectar.length){
+   if(nectar[0]==="R") red+=5; else blue+=5;
+   if(nectar[nectar.length-1]==="R") red+=seq.length*2; else blue+=seq.length*2;
+ }
+ return [red,blue];
+}
+function sharedFlowerSection(){
+ return `<section class="card full">
+ <h2>🌸 FLOWERS｜最後 60 秒</h2>
+ <div class="sub">4 個 FLOWER 為場上共用元素，紅藍方都在同一個 FLOWER 中依實際放入順序記錄。</div>
+ ${[0,1,2,3].map(i=>flower(i)).join("")}
+ </section>`;
+}
+function score(c){
+ const x=state[c];
+ return x.leave*3+x.autoPark*5+x.teleopPark*5+x.tips*20+
+   (x.hivePollen+x.hiveNectar)*2+x.gardenPollen+x.gardenNectar;
+}
+function rp(c){
+ const x=state[c], swarm=x.leave*3+x.autoPark*5>=16;
+ return {swarm,p1:x.tips>=4,p2:x.tips>=7,total:(swarm?1:0)+(x.tips>=4?1:0)+(x.tips>=7?1:0)};
+}
+function renderAlliance(c){
+ const title=c==="red"?"🔴 紅聯盟":"🔵 藍聯盟";
+ const sc=score(c),r=rp(c);
+ document.getElementById(c).innerHTML=`<h2>${title}</h2><div class="score">${sc}</div><div class="rpline">Ranking Points：${r.total}</div>
+ <h3>AUTO｜自動階段</h3>${row(c,"leave")}${row(c,"autoPark")}
+ <h3>TELEOP｜手動階段</h3>${row(c,"teleopPark")}
+ <h3>🐝 HIVE｜蜂巢</h3>${row(c,"tips")}${row(c,"hivePollen")}${row(c,"hiveNectar")}
+ <h3>🌱 GARDEN｜花園</h3>${row(c,"gardenPollen")}${row(c,"gardenNectar")}
+ <div class="rpbox">
+ <div class="rprow"><span>🐝 SWARM RP</span><span class="${r.swarm?"yes":"no"}">${r.swarm?"✓ +1 RP":"未達成"}</span></div>
+ <div class="rprow"><span>🌸 POLLINATOR 1</span><span class="${r.p1?"yes":"no"}">${r.p1?"✓ +1 RP":"未達成"}</span></div>
+ <div class="rprow"><span>🌸 POLLINATOR 2</span><span class="${r.p2?"yes":"no"}">${r.p2?"✓ +1 RP":"未達成"}</span></div>
+ </div>`;
+}
+function render(){
+ renderAlliance("red");renderAlliance("blue");
+ let r=score("red"),b=score("blue");
+ if(finished){
+   for(let i=0;i<4;i++){
+     const [a,z]=flowerSharedScore(i);
+     r+=a;b+=z;
+   }
+ }
+ document.getElementById("rs").textContent=r;
+ document.getElementById("bs").textContent=b;
+ document.getElementById("lead").textContent=r===0&&b===0?"尚未計分":r>b?"🔴 紅聯盟目前領先":b>r?"🔵 藍聯盟目前領先":"🤝 目前平手";
+ const rr=rp("red"),br=rp("blue");
+ let rrp=rr.total,bRP=br.total;
+ if(r>b){rrp+=3}else if(b>r){bRP+=3}else if(r===b){rrp+=1;bRP+=1}
+ document.getElementById("finalrp").innerHTML=finished?`<div style="margin-top:8px;font-size:13px">🏆 最終 RP：🔴 ${rrp}　｜　🔵 ${bRP}</div>`:"";
+ document.getElementById("status").textContent=finished?"已結束：FLOWER、勝負 RP 已正式結算。":"計分中：FLOWER 只在最後 60 秒正式結算。";
+ const old=document.getElementById("sharedFlowers");
+ if(old) old.remove();
+ document.querySelector(".bottom").insertAdjacentHTML("beforebegin",`<div id="sharedFlowers" class="grid" style="margin-top:12px">${sharedFlowerSection()}</div>`);
+}
+document.addEventListener("click",e=>{
+ const b=e.target.closest("button");
+ if(!b)return;
+ if(b.dataset.c){
+   const c=b.dataset.c,k=b.dataset.k,d=Number(b.dataset.d);
+   state[c][k]=Math.max(0,state[c][k]+d);render();return;
+ }
+ if(b.dataset.fclear){
+   state.flowers[Number(b.dataset.fi)]=[];
+   render();
+   return;
+ }
+ if(b.dataset.add){
+   state.flowers[Number(b.dataset.fi)].push(b.dataset.add);
+   render();
+   return;
+ }
+});
+document.getElementById("finish").onclick=()=>{finished=true;render()};
+document.getElementById("reset").onclick=()=>{if(confirm("確定要重設本場比賽？")){state.red=fresh();state.blue=fresh();state.flowers=[[],[],[],[]];finished=false;render()}};
+render();
+</script>
+</body>
+</html>
