@@ -131,7 +131,7 @@ function rp(c){
  return {swarm,p1:x.tips>=4,p2:x.tips>=7,total:(swarm?1:0)+(x.tips>=4?1:0)+(x.tips>=7?1:0)};
 }
 function renderAlliance(c){
- const title=c==="red"?"🔴 紅聯盟":"🔵 藍聯盟";
+ const title=c==="red"?"🔴 紅色聯盟":"🔵 藍色聯盟";
  const sc=score(c),r=rp(c);
  document.getElementById(c).innerHTML=`<h2>${title}</h2><div class="score">${sc}</div><div class="rpline">Ranking Points：${r.total}</div>
  <h3>AUTO｜自動階段</h3>${row(c,"leave")}${row(c,"autoPark")}
